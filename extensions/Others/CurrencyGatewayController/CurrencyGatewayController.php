@@ -20,7 +20,7 @@ class CurrencyGatewayController extends Extension
             ->mapWithKeys(fn (Gateway $gateway) => [$gateway->id => $gateway->name])
             ->toArray();
 
-        return Currency::query()
+        $currencyFields = Currency::query()
             ->orderBy('code')
             ->get()
             ->map(function (Currency $currency) use ($gatewayOptions) {
@@ -36,6 +36,20 @@ class CurrencyGatewayController extends Extension
             })
             ->values()
             ->toArray();
+
+        return array_merge([
+            [
+                'name' => 'gateway_visibility_mode',
+                'label' => 'Gateway visibility mode',
+                'type' => 'select',
+                'options' => [
+                    'prefer_configured' => 'Show all gateways (prioritize configured gateways first)',
+                    'strict_filter' => 'Show only configured gateways for the selected currency',
+                ],
+                'default' => 'prefer_configured',
+                'description' => 'Choose whether configured gateways are only prioritized (recommended) or strictly enforced per currency.',
+            ],
+        ], $currencyFields);
     }
 
     public function boot()
@@ -61,6 +75,13 @@ class CurrencyGatewayController extends Extension
 
             $allowedIds = $allowedGatewaysByCurrency[$currency];
             if ($allowedIds === []) {
+                return;
+            }
+
+            if ($this->visibilityMode() === 'prefer_configured') {
+                $placeholders = implode(',', array_fill(0, count($allowedIds), '?'));
+                $builder->orderByRaw("CASE WHEN id IN ($placeholders) THEN 0 ELSE 1 END", $allowedIds);
+
                 return;
             }
 
@@ -102,6 +123,15 @@ class CurrencyGatewayController extends Extension
     private function resolveCurrentCurrency(): ?string
     {
         return session('currency', config('settings.default_currency'));
+    }
+
+    private function visibilityMode(): string
+    {
+        $mode = $this->config['gateway_visibility_mode'] ?? 'prefer_configured';
+
+        return in_array($mode, ['prefer_configured', 'strict_filter'], true)
+            ? $mode
+            : 'prefer_configured';
     }
 
     private function shouldApplyScope(): bool
