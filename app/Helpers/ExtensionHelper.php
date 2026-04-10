@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\Server;
 use App\Models\Service;
 use App\Models\User;
+use App\Support\Payments\DualCurrencyProcessingResolver;
 use Exception;
 use Filament\Forms\Components\Placeholder;
 use Illuminate\Database\Eloquent\Collection;
@@ -379,10 +380,12 @@ class ExtensionHelper
     public static function getCheckoutGateways($total, $currency, $type, $items = [])
     {
         $gateways = [];
+        $currencyResolver = new DualCurrencyProcessingResolver();
+        $processingCurrency = $currencyResolver->forGatewaySelection($currency);
 
         foreach (Gateway::with('settings')->get() as $gateway) {
             if (self::hasFunction($gateway, 'canUseGateway')) {
-                if (self::getExtension('gateway', $gateway->extension, $gateway->settings)->canUseGateway($total, $currency, $type, $items)) {
+                if (self::getExtension('gateway', $gateway->extension, $gateway->settings)->canUseGateway($total, $processingCurrency, $type, $items)) {
                     $gateways[] = $gateway;
                 }
             } else {
@@ -398,12 +401,24 @@ class ExtensionHelper
      */
     public static function pay($gateway, $invoice)
     {
-        return self::getExtension('gateway', $gateway->extension, $gateway->settings)->pay($invoice, $invoice->remaining);
+        $currencyResolver = new DualCurrencyProcessingResolver();
+        $context = $currencyResolver->forInvoicePayment($invoice, (float) $invoice->remaining);
+
+        $invoiceForGateway = clone $invoice;
+        $invoiceForGateway->currency_code = $context['processing_currency'];
+
+        return self::getExtension('gateway', $gateway->extension, $gateway->settings)->pay($invoiceForGateway, $context['processing_amount']);
     }
 
     public static function charge(Gateway $gateway, Invoice $invoice, BillingAgreement $billingAgreement): bool
     {
-        return self::getExtension('gateway', $gateway->extension, $gateway->settings)->charge($invoice, $invoice->remaining, $billingAgreement);
+        $currencyResolver = new DualCurrencyProcessingResolver();
+        $context = $currencyResolver->forInvoicePayment($invoice, (float) $invoice->remaining);
+
+        $invoiceForGateway = clone $invoice;
+        $invoiceForGateway->currency_code = $context['processing_currency'];
+
+        return self::getExtension('gateway', $gateway->extension, $gateway->settings)->charge($invoiceForGateway, $context['processing_amount'], $billingAgreement);
     }
 
     public static function getBillingAgreementGateways()

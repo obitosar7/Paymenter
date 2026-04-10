@@ -13,10 +13,12 @@ This extension keeps **display currency** and **payment processing currency** se
 
 1. Keep storefront/invoice prices in `USD` (display).
 2. Map `USD -> EUR` as processing currency if your gateway account settles in EUR.
-3. Define allowed gateways for `EUR`.
-4. Choose strict mode for hard filtering, or prefer mode for soft prioritization.
+3. Set `USD -> Processing exchange rate` (for example `50` if `1 USD = 50 EGP`).
+4. Define allowed gateways for `EUR` (or your mapped processing currency).
+5. Choose strict mode for hard filtering, or prefer mode for soft prioritization.
 
 ## Notes
 
 - If no mapping is defined, processing currency defaults to display currency.
+- If mapped currency differs, payment amount is multiplied by the configured exchange rate before request creation.
 - If no gateway list is defined for a processing currency, all gateways remain available.

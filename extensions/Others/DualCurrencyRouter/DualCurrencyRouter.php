@@ -44,6 +44,12 @@ class DualCurrencyRouter extends Extension
                     'options' => $currencyOptions,
                     'description' => "Checkout can still show $code, but gateway validation/filtering will use this selected processing currency.",
                 ], [
+                    'name' => $this->processingRateSettingKey($code),
+                    'label' => "$code -> Processing exchange rate",
+                    'type' => 'text',
+                    'placeholder' => 'e.g. 50.25',
+                    'description' => "Multiplier used to convert $code amounts before sending payment requests to processing gateways.",
+                ], [
                     'name' => $this->gatewaySettingKey($code),
                     'label' => "$code Allowed gateways",
                     'type' => 'select',
@@ -112,5 +118,10 @@ class DualCurrencyRouter extends Extension
     private function processingCurrencySettingKey(string $currencyCode): string
     {
         return 'display_currency_' . strtolower($currencyCode) . '_processing_currency';
+    }
+
+    private function processingRateSettingKey(string $currencyCode): string
+    {
+        return 'display_currency_' . strtolower($currencyCode) . '_processing_rate';
     }
 }
