@@ -20,11 +20,17 @@ class CurrencyGatewayController extends Extension
             ->mapWithKeys(fn (Gateway $gateway) => [$gateway->id => $gateway->name])
             ->toArray();
 
-        $currencyFields = Currency::query()
+        $currencies = Currency::query()
             ->orderBy('code')
-            ->get()
-            ->map(function (Currency $currency) use ($gatewayOptions) {
-                return [
+            ->get();
+
+        $currencyOptions = $currencies
+            ->mapWithKeys(fn (Currency $currency) => [$currency->code => $currency->code])
+            ->toArray();
+
+        $currencyFields = $currencies
+            ->flatMap(function (Currency $currency) use ($gatewayOptions, $currencyOptions) {
+                return [[
                     'name' => $this->gatewaySettingKey($currency->code),
                     'label' => "{$currency->code} Allowed Gateways",
                     'type' => 'select',
@@ -32,7 +38,13 @@ class CurrencyGatewayController extends Extension
                     'options' => $gatewayOptions,
                     'database_type' => 'array',
                     'description' => "Select the gateways available when paying in {$currency->code}. Leave empty to allow all gateways.",
-                ];
+                ], [
+                    'name' => $this->gatewayCurrencySettingKey($currency->code),
+                    'label' => "{$currency->code} Process payments as",
+                    'type' => 'select',
+                    'options' => $currencyOptions,
+                    'description' => "Optional: keep checkout prices shown in {$currency->code} but resolve gateways using another currency in the background.",
+                ]];
             })
             ->values()
             ->toArray();
@@ -120,9 +132,26 @@ class CurrencyGatewayController extends Extension
         return 'currency_' . strtolower($currencyCode) . '_gateways';
     }
 
+    private function gatewayCurrencySettingKey(string $currencyCode): string
+    {
+        return 'currency_' . strtolower($currencyCode) . '_gateway_currency';
+    }
+
     private function resolveCurrentCurrency(): ?string
     {
-        return session('currency', config('settings.default_currency'));
+        $selectedCurrency = session('currency', config('settings.default_currency'));
+        if (!$selectedCurrency) {
+            return null;
+        }
+
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $gatewayCurrency = $this->config[$this->gatewayCurrencySettingKey($selectedCurrency)] ?? null;
+
+        if (!is_string($gatewayCurrency) || $gatewayCurrency === '') {
+            return $selectedCurrency;
+        }
+
+        return strtoupper($gatewayCurrency);
     }
 
     private function visibilityMode(): string
