@@ -43,11 +43,11 @@ class CurrencyGatewayController extends Extension
                 'label' => 'Gateway visibility mode',
                 'type' => 'select',
                 'options' => [
-                    'prefer_configured' => 'Show all gateways (prioritize configured gateways first)',
                     'strict_filter' => 'Show only configured gateways for the selected currency',
+                    'prefer_configured' => 'Show all gateways (prioritize configured gateways first)',
                 ],
-                'default' => 'prefer_configured',
-                'description' => 'Choose whether configured gateways are only prioritized (recommended) or strictly enforced per currency.',
+                'default' => 'strict_filter',
+                'description' => 'Strict filter is recommended for production because some providers reject unsupported currency combinations.',
             ],
         ], $currencyFields);
     }
@@ -127,11 +127,11 @@ class CurrencyGatewayController extends Extension
 
     private function visibilityMode(): string
     {
-        $mode = $this->config['gateway_visibility_mode'] ?? 'prefer_configured';
+        $mode = $this->config['gateway_visibility_mode'] ?? 'strict_filter';
 
         return in_array($mode, ['prefer_configured', 'strict_filter'], true)
             ? $mode
-            : 'prefer_configured';
+            : 'strict_filter';
     }
 
     private function shouldApplyScope(): bool
