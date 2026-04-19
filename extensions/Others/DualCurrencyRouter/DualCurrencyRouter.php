@@ -64,6 +64,13 @@ class DualCurrencyRouter extends Extension
 
         return array_merge([
             [
+                'name' => 'forced_display_currency',
+                'label' => 'Forced display currency',
+                'type' => 'select',
+                'options' => $currencyOptions,
+                'description' => 'Optional. If set, customer-facing pages will always use this display currency on the frontend.',
+            ],
+            [
                 'name' => 'gateway_visibility_mode',
                 'label' => 'Gateway visibility mode',
                 'type' => 'select',

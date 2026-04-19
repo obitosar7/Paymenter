@@ -2,6 +2,7 @@
 
 namespace Paymenter\Extensions\Others\DualCurrencyRouter\Middleware;
 
+use App\Models\Extension;
 use App\Models\Invoice;
 use Closure;
 use Illuminate\Http\Request;
@@ -10,11 +11,16 @@ class CaptureDisplayCurrency
 {
     public function handle(Request $request, Closure $next)
     {
+        if ($this->isAdminRequest($request)) {
+            return $next($request);
+        }
+
         $displayCurrency = $this->resolveDisplayCurrency($request);
 
         if ($displayCurrency) {
             $request->attributes->set('dual_currency.display_currency', $displayCurrency);
             $request->session()->put('dual_currency.display_currency', $displayCurrency);
+            $request->session()->put('currency', $displayCurrency);
         }
 
         return $next($request);
@@ -22,6 +28,11 @@ class CaptureDisplayCurrency
 
     private function resolveDisplayCurrency(Request $request): ?string
     {
+        $forcedDisplayCurrency = $this->forcedDisplayCurrency();
+        if ($forcedDisplayCurrency) {
+            return $forcedDisplayCurrency;
+        }
+
         $invoiceCurrency = $this->currencyFromRouteInvoice($request);
         if ($invoiceCurrency) {
             return $invoiceCurrency;
@@ -121,5 +132,36 @@ class CaptureDisplayCurrency
         }
 
         return null;
+    }
+
+    private function forcedDisplayCurrency(): ?string
+    {
+        $extension = Extension::query()
+            ->where('type', 'other')
+            ->where('extension', 'DualCurrencyRouter')
+            ->where('enabled', true)
+            ->first();
+
+        if (!$extension) {
+            return null;
+        }
+
+        $currency = $extension->settings
+            ->firstWhere('key', 'forced_display_currency')
+            ?->value;
+
+        if (!is_string($currency) || $currency === '') {
+            return null;
+        }
+
+        return strtoupper($currency);
+    }
+
+    private function isAdminRequest(Request $request): bool
+    {
+        $path = ltrim($request->path(), '/');
+
+        return str_starts_with($path, 'admin')
+            || str_starts_with($path, 'api/v1/admin');
     }
 }
