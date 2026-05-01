@@ -67,7 +67,7 @@ class VatManager extends Extension
             return [
                 'name' => 'VAT Manager',
                 'route' => 'extensions.vat-manager.index',
-                'icon' => 'ri-percent-line',
+                'icon' => 'ri-percent',
                 'separator' => false,
                 'children' => [],
             ];
